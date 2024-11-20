@@ -4,20 +4,28 @@ import { AlumnosSchema } from '../types';
 
 const ALUMNO_URL = `${import.meta.env.VITE_API_URL}/alumno`;
 const ASISTENCIA_URL = `${import.meta.env.VITE_API_URL}/asistencia`;
+const CARRERA_URL = `${import.meta.env.VITE_API_URL}/carrera`;
+
+console.log("ASISTENCIA_URL:", ASISTENCIA_URL);
 
 // Función para obtener alumnos con validación de datos
 export async function obtenerAlumnos() {
     try {
-        const { data } = await axios.get(ALUMNO_URL);
-        console.log("Datos de la API:", data); // Imprimir datos
+        const { data: alumnosData } = await axios.get(ALUMNO_URL);
+        const { data: carrerasData } = await axios.get(CARRERA_URL);
+        console.log("Datos de la API:", alumnosData, carrerasData);
 
-        const result = safeParse(AlumnosSchema, data);
+        const result = safeParse(AlumnosSchema, alumnosData);
 
         if (result.success) {
-            return result.output; // Devuelve los alumnos si la validación es exitosa
+            const carrerasMap = new Map(carrerasData.map((carrera: { id_carrera: number, nom_carrera: string }) => [carrera.id_carrera, carrera.nom_carrera]));
+            return result.output.map(alumno => ({
+                ...alumno,
+                nom_carrera: carrerasMap.get(alumno.id_carrera) || ''
+            }));
         } else {
-            console.log("Errores de validación:", result.issues); // Imprimir problemas de validación
-            throw new Error('Hubo un error en la validación de los datos');
+            console.log("Errores de validación:", result.issues);
+            throw new Error('Error en la validacion de los datos');
         }
     } catch (error) {
         console.log(error);
@@ -26,43 +34,51 @@ export async function obtenerAlumnos() {
 }
 
 // Interfaz de los datos de asistencia
+interface Alumno {
+    id_alumno: number;
+    estado: 'Presente' | 'Ausente';
+}
+
 interface AsistenciaData {
     fecha: string;
-    alumnos: {
-        id_alumno: number;
-        estado: 'Presente' | 'Ausente' | 'Justificativo';
-    }[];
+    alumnos: Alumno[];
 }
 
 // Función para transformar los datos de entrada al formato de AsistenciaData
 function transformarDatosAsistencia(datos: Record<string, any>): AsistenciaData {
-    const { fecha, ...estados } = datos;
+    const { fecha, alumnos } = datos;
 
-    const alumnos = Object.entries(estados).map(([key, estado]) => {
-        const id = parseInt(key.replace('estado_', ''));
+    console.log("Datos recibidos para transformación:", datos);
+    console.log("Fecha:", fecha);
+    console.log("Alumnos:", alumnos);
 
-        // Validamos que el id es un número válido y estado no es nulo o indefinido
-        if (!isNaN(id) && estado) {
-            return { id_alumno: id, estado };
+    const alumnosTransformados = alumnos.map((alumno: any) => {
+        console.log(`Transformando estado de alumno: id = ${alumno.id_alumno}, estado = ${alumno.estado}`);
+
+        if (!isNaN(alumno.id_alumno) && typeof alumno.estado === 'string' && ['Presente', 'Ausente'].includes(alumno.estado)) {
+            return { id_alumno: alumno.id_alumno, estado: alumno.estado };
         } else {
-            throw new Error(`Datos inválidos para alumno con clave ${key} y estado ${estado}`);
+            console.warn(`Dato inválido para el alumno: id = ${alumno.id_alumno}, estado = ${alumno.estado}`);
+            return null;
         }
-    });
+    }).filter((alumno): alumno is Alumno => alumno !== null);
 
-    return { fecha, alumnos };
+    console.log("Alumnos transformados:", alumnosTransformados);
+    return { fecha, alumnos: alumnosTransformados };
 }
 
 // Servicio para registrar la asistencia
 export async function registrarAsistencia(datos: Record<string, any>): Promise<void> {
-    const data = transformarDatosAsistencia(datos);  // Transformar los datos al formato adecuado
+    const data = transformarDatosAsistencia(datos);
 
-    console.log("Datos enviados al backend:", data);  // Aquí ves el formato de `data`
+    console.log("Datos enviados al backend:", data);
 
     try {
-        await axios.post(ASISTENCIA_URL, data);  // Llamada a la API con los datos transformados
+        await axios.post(ASISTENCIA_URL, data, {
+            headers: { 'Content-Type': 'application/json' }
+        });
         console.log('Asistencia registrada exitosamente');
     } catch (error) {
         console.error('Error al registrar la asistencia:', error);
-        throw new Error('Error al registrar la asistencia');
     }
 }

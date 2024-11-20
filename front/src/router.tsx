@@ -1,11 +1,10 @@
 import { createBrowserRouter } from "react-router-dom";
 import LayoutPrincipal from "./layouts/LayoutPrincipal";
 import Login, { action as actionLogin } from "./components/Login";
-import FormularioAsistencia from "./views/FormularioAsistencia"; // Asegúrate de importar el componente correctamente
 import Registropreceptor, { action as actionRegistro } from "./components/Register";
 import RegistroAlumno, { action as actionFormularioAlumno } from "./views/FormularioAlumnos";
 import RegistroCarrera, { action as actionFormularioCarrera, loader as LoaderListaCarrera } from "./views/FormularioCarreras";
-import AlumnoAsistencia, { action as actionFormularioAsistencia, loader as LoaderListaAlumno } from "./views/FormularioAsistencia";
+import FormularioAsistencia, { action as actionFormularioAsistencia, loader as LoaderListaAlumno } from "./views/FormularioAsistencia";
 import Home from "./components/Home";
 
 

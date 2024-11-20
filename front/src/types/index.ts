@@ -29,6 +29,7 @@ export const AlumnoSchema = object({
     dni: string(),
     anio: string(),
     id_carrera: number()
+    
 });
 
 export const AlumnosSchema = array(AlumnoSchema);
@@ -79,7 +80,6 @@ export type InsertCarreras = InferOutput<typeof CarreraSchema>;
 
 // Esquema para el array de carreras (sin fechas)
 export const DrafCarreraSchema = object({
-    id_carrera: number(),
     nom_carrera: string()
 });
 
@@ -92,10 +92,9 @@ export type cargarCarrera = InferOutput<typeof CarreraSchema>;
 
 // Esquema completo para una Asistencia (con ID)
 export const AsistenciaSchema = object({
-    id_asistencia: number(),
+    //id_asistencia: number(),
     id_alumno: number(),
-    id_preceptor: number(),
-    fecha: date(),
+    fecha: string(),
     estado: string(),
     createdAt: date(),
     updatedAt: date()

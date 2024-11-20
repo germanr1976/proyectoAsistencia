@@ -1,7 +1,7 @@
+import React, { useState, useEffect, useRef } from 'react';
 import { Form, ActionFunctionArgs, redirect, useLoaderData } from 'react-router-dom';
-import { InsertAlumnos } from '../types/index';
 import { obtenerAlumnos, registrarAsistencia } from '../services/AsistenciaService';
-import { useState, useEffect } from 'react';
+import ReporteAsistencia from '../components/ReporteAsistencia';
 
 export async function loader() {
     try {
@@ -17,24 +17,24 @@ export async function action({ request }: ActionFunctionArgs) {
     const data = Object.fromEntries(await request.formData());
     console.log('datos enviados', data);
 
-    // Valida que todos los campos requeridos estén completos
+    // Verificar que todos los campos estén completos
     if (Object.values(data).some(value => value === '')) {
         return 'Todos los campos son obligatorios';
     }
 
-    // Formatea los datos de asistencia a enviar al backend
     const asistenciaData = {
         fecha: data.fecha as string,
         alumnos: Object.keys(data)
             .filter(key => key.startsWith('estado_'))
             .map(key => ({
                 id_alumno: Number(key.split('_')[1]),
-                estado: data[key] as 'Presente' | 'Ausente' | 'Justificada'
+                estado: data[key] as string
             }))
     };
 
+    console.log('Datos transformados para enviar:', asistenciaData);
+
     try {
-        // Envía la asistencia al backend
         await registrarAsistencia(asistenciaData);
         return redirect('/');
     } catch (error: unknown) {
@@ -46,38 +46,63 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 const FormularioAsistencia = () => {
-    const alumnos = useLoaderData() as {
-        seleccionado: any; id_alumno: number; nom_alumno: string; apell_alumno: string; dni: string; anio: string; id_carrera: number
-    }[];
-    const [selectedCarrera, setSelectedCarrera] = useState<number | null>(null);
+    const alumnos = useLoaderData() as { id_alumno: number, nom_alumno: string, apell_alumno: string, anio: string, id_carrera: number, nom_carrera: string }[];
+    const [selectedCarrera, setSelectedCarrera] = useState<string | null>(null);
     const [selectedAnio, setSelectedAnio] = useState<string | null>(null);
     const [filteredAlumnos, setFilteredAlumnos] = useState(alumnos);
-    const [todosSeleccionados, setTodosSeleccionados] = useState(false);
+    const [fecha, setFecha] = useState('');
+    const [estadoAlumnos, setEstadoAlumnos] = useState<{ [id: number]: string }>({});
+    const [currentPage, setCurrentPage] = useState(1);
+    const alumnosPerPage = 10;
+    const [showReport, setShowReport] = useState(false);
+    const reportRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (selectedCarrera !== null && selectedAnio !== null) {
-            setFilteredAlumnos(alumnos.filter(alumno =>
-                alumno.id_carrera === selectedCarrera && alumno.anio === selectedAnio
-            ));
+        if (selectedCarrera && selectedAnio) {
+            setFilteredAlumnos(alumnos.filter(alumno => alumno.nom_carrera === selectedCarrera && alumno.anio === selectedAnio));
         } else {
             setFilteredAlumnos(alumnos);
         }
     }, [selectedCarrera, selectedAnio, alumnos]);
 
-    const handleSeleccionarTodos = () => {
-        setTodosSeleccionados(!todosSeleccionados);
-        setFilteredAlumnos(prevAlumnos =>
-            prevAlumnos.map(alumno => ({ ...alumno, seleccionado: !todosSeleccionados }))
-        );
+    const handleEstadoChange = (id_alumno: number, estado: string) => {
+        setEstadoAlumnos(prev => ({ ...prev, [id_alumno]: estado }));
     };
 
-    const handleSeleccionChange = (id_alumno: number) => {
-        setFilteredAlumnos(prevAlumnos =>
-            prevAlumnos.map(alumno =>
-                alumno.id_alumno === id_alumno ? { ...alumno, seleccionado: !alumno.seleccionado } : alumno
-            )
-        );
+    const handleSubmit = async (event: React.FormEvent) => {
+        event.preventDefault();
+        const asistenciaData = {
+            fecha,
+            alumnos: filteredAlumnos.map(alumno => ({
+                id_alumno: alumno.id_alumno,
+                estado: estadoAlumnos[alumno.id_alumno] || 'Ausente', // Valor por defecto
+            }))
+        };
+        try {
+            await registrarAsistencia(asistenciaData);
+            alert('Asistencia registrada exitosamente');
+        } catch (error) {
+            console.error('Error al registrar la asistencia:', error);
+            alert('Error al registrar la asistencia');
+        }
     };
+
+    const handlePrint = () => {
+        setShowReport(true);
+        setTimeout(() => {
+            if (reportRef.current) {
+                window.print();
+            }
+        }, 500);
+    };
+
+    // Calcular los alumnos a mostrar en la página actual
+    const indexOfLastAlumno = currentPage * alumnosPerPage;
+    const indexOfFirstAlumno = indexOfLastAlumno - alumnosPerPage;
+    const currentAlumnos = filteredAlumnos.slice(indexOfFirstAlumno, indexOfLastAlumno);
+
+    // Cambiar de página
+    const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
@@ -85,7 +110,7 @@ const FormularioAsistencia = () => {
                 <h2 className="text-2xl font-semibold text-center text-gray-800 dark:text-gray-200 mb-6">
                     Registro de Asistencia
                 </h2>
-                <Form method="post" className="space-y-6">
+                <Form onSubmit={handleSubmit} className="space-y-6">
                     <div>
                         <label htmlFor="fecha" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                             Fecha
@@ -94,6 +119,8 @@ const FormularioAsistencia = () => {
                             name="fecha"
                             id="fecha"
                             type="date"
+                            value={fecha}
+                            onChange={(e) => setFecha(e.target.value)}
                             className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600"
                             required
                         />
@@ -105,13 +132,13 @@ const FormularioAsistencia = () => {
                         <select
                             id="carrera"
                             value={selectedCarrera || ''}
-                            onChange={(e) => setSelectedCarrera(Number(e.target.value))}
+                            onChange={(e) => setSelectedCarrera(e.target.value)}
                             className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600"
                             required
                         >
                             <option value="">Seleccione una carrera</option>
-                            {[...new Set(alumnos.map(alumno => alumno.id_carrera))].map(id_carrera => (
-                                <option key={id_carrera} value={id_carrera}>{id_carrera}</option>
+                            {[...new Set(alumnos.map(alumno => alumno.nom_carrera))].map(carrera => (
+                                <option key={carrera} value={carrera}>{carrera}</option>
                             ))}
                         </select>
                     </div>
@@ -132,71 +159,63 @@ const FormularioAsistencia = () => {
                             ))}
                         </select>
                     </div>
-                    <div className="flex justify-between mt-6">
-                        <button
-                            type="button"
-                            onClick={handleSeleccionarTodos}
-                            className="px-4 py-2 bg-blue-500 text-white rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                            {todosSeleccionados ? 'Desmarcar Todos' : 'Marcar Todos'}
-                        </button>
+                    <div className="space-y-4">
+                        {currentAlumnos.map(alumno => (
+                            <div key={alumno.id_alumno} className="flex items-center space-x-4">
+                                <span className="flex-1 text-gray-700 dark:text-gray-300">{alumno.nom_alumno} {alumno.apell_alumno}</span>
+                                <select
+                                    onChange={(e) => handleEstadoChange(alumno.id_alumno, e.target.value)}
+                                    className="form-select h-10 w-40 text-indigo-600"
+                                >
+                                    <option value="Presente">Presente</option>
+                                    <option value="Ausente">Ausente</option>
+                                </select>
+                            </div>
+                        ))}
                     </div>
-
-                    <h2 className="text-2xl font-semibold text-center text-gray-800 dark:text-gray-200 mt-8 mb-6">
-                        Listado de Alumnos
-                    </h2>
-                    <table className="min-w-full bg-white dark:bg-gray-800">
-                        <thead>
-                            <tr>
-                                <th className="px-4 py-2 border-b-2 border-gray-300 dark:border-gray-600">Nombre</th>
-                                <th className="px-4 py-2 border-b-2 border-gray-300 dark:border-gray-600">Apellido</th>
-                                <th className="px-4 py-2 border-b-2 border-gray-300 dark:border-gray-600">DNI</th>
-                                <th className="px-4 py-2 border-b-2 border-gray-300 dark:border-gray-600">Año</th>
-                                <th className="px-4 py-2 border-b-2 border-gray-300 dark:border-gray-600">Carrera</th>
-                                <th className="px-4 py-2 border-b-2 border-gray-300 dark:border-gray-600">Estado</th>
-                                <th className="px-4 py-2 border-b-2 border-gray-300 dark:border-gray-600">Seleccionar</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredAlumnos.map(alumno => (
-                                <tr key={alumno.id_alumno}>
-                                    <td className="px-4 py-2 border-b border-gray-300 dark:text-gray-200">{alumno.nom_alumno}</td>
-                                    <td className="px-4 py-2 border-b border-gray-300 dark:text-gray-200">{alumno.apell_alumno}</td>
-                                    <td className="px-4 py-2 border-b border-gray-300 dark:text-gray-200">{alumno.dni}</td>
-                                    <td className="px-4 py-2 border-b border-gray-300 dark:text-gray-200">{alumno.anio}</td>
-                                    <td className="px-4 py-2 border-b border-gray-300 dark:text-gray-200">{alumno.id_carrera}</td>
-                                    <td className="px-4 py-2 border-b border-gray-300 dark:text-gray-200">
-                                        <select
-                                            name={`estado_${alumno.id_alumno}`}
-                                            className="form-select h-10 w-full text-indigo-600"
-                                            required
-                                        >
-                                            <option value="Presente">Presente</option>
-                                            <option value="Ausente">Ausente</option>
-                                            <option value="Justificada">Justificada</option>
-                                        </select>
-                                    </td>
-                                    <td className="px-4 py-2 border-b border-gray-300 dark:text-gray-200 text-center">
-                                        <input
-                                            type="checkbox"
-                                            checked={alumno.seleccionado || todosSeleccionados}
-                                            onChange={() => handleSeleccionChange(alumno.id_alumno)}
-                                        />
-                                    </td>
-                                </tr>
+                    <div className="flex justify-between items-center mt-6">
+                        <div>
+                            {Array.from({ length: Math.ceil(filteredAlumnos.length / alumnosPerPage) }, (_, index) => (
+                                <button
+                                    key={index + 1}
+                                    onClick={() => paginate(index + 1)}
+                                    className={`px-4 py-2 mx-1 rounded-md ${currentPage === index + 1 ? 'bg-indigo-600 text-white' : 'bg-gray-300 text-gray-700'}`}
+                                >
+                                    {index + 1}
+                                </button>
                             ))}
-                        </tbody>
-                    </table>
-                    <div className="flex justify-center mt-6">
-                        <button
-                            type="submit"
-                            className="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        >
-                            Guardar Asistencia
-                        </button>
+                        </div>
+                        <div className="flex space-x-4">
+                            <button
+                                type="button"
+                                onClick={handlePrint}
+                                className="px-4 py-2 bg-green-600 text-white rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                            >
+                                Imprimir Reporte
+                            </button>
+                            <button
+                                type="submit"
+                                className="px-4 py-2 bg-indigo-600 text-white rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            >
+                                Registrar Asistencia
+                            </button>
+                        </div>
                     </div>
                 </Form>
             </div>
+            {showReport && (
+                <div ref={reportRef} className="hidden">
+                    <ReporteAsistencia
+                        fecha={fecha}
+                        alumnos={filteredAlumnos.map(alumno => ({
+                            id_alumno: alumno.id_alumno,
+                            nom_alumno: alumno.nom_alumno,
+                            apell_alumno: alumno.apell_alumno,
+                            estado: estadoAlumnos[alumno.id_alumno] || 'Ausente'
+                        }))}
+                    />
+                </div>
+            )}
         </div>
     );
 };

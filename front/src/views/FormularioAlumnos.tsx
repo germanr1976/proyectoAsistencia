@@ -30,6 +30,8 @@ export async function action({ request }: ActionFunctionArgs) {
     if (!isNaN(idCarreraValue)) {
         try {
             await alumno({
+
+
                 nom_alumno: data.nom_alumno,
                 apell_alumno: data.apell_alumno,
                 dni: data.dni,
@@ -40,7 +42,10 @@ export async function action({ request }: ActionFunctionArgs) {
                 anio: anioValue, // Mantener anio como cadena
                 id_carrera: idCarreraValue.toString() // Convertir id_carrera a cadena
             });
+            alert('Alumno registrado exitosamente'); // Mostrar mensaje de éxito
+
             return redirect('/');
+
         } catch (error: unknown) {
             if (error instanceof Error) {
                 return error.message;
