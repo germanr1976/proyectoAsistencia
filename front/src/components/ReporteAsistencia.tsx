@@ -14,9 +14,9 @@ interface ReporteAsistenciaProps {
 
 const ReporteAsistencia: React.FC<ReporteAsistenciaProps> = ({ fecha, alumnos }) => {
     return (
-        <div className="p-8 bg-white rounded-lg shadow-md">
-            <h2 className="text-2xl font-semibold text-center text-gray-800 mb-6">
-                Reporte de Asistencia - {fecha}
+        <div className="p-5 bg-white rounded-lg shadow-md">
+            <h2 className="text-xl font-semibold text-center text-gray-800 mb-6">
+                Registro de Asistencia - {fecha}
             </h2>
             <table className="min-w-full bg-white">
                 <thead>

@@ -4,7 +4,7 @@ import {
     getCarreras,
     getCarrera,
     updateCarrera,
-    deleteCarrera
+    eliminarCarrera
 } from '../controllers/carreraController';
 
 const router = express.Router();
@@ -22,6 +22,6 @@ router.get('/:id', getCarrera);
 router.put('/:id', updateCarrera);
 
 // Ruta para eliminar una carrera
-router.delete('/:id', deleteCarrera);
+router.delete('/:id', eliminarCarrera);
 
 export default router;

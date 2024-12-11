@@ -1,6 +1,6 @@
-import { Form, ActionFunctionArgs, redirect, useLoaderData } from 'react-router-dom';
+import { ActionFunctionArgs, redirect, useLoaderData } from 'react-router-dom';
 import { InsertCarreras } from '../types/index';
-import { carrera, obtenerCarreras, eliminarCarrera } from '../services/CarreraService';
+import { carrera, obtenerCarreras, eliminarCarrera, editarCarrera } from '../services/CarreraService';
 import { useState } from 'react';
 
 export async function loader() {
@@ -15,7 +15,7 @@ export async function loader() {
 
 type RegistroCarreraFormProps = {
     registroCarrera?: InsertCarreras;
-}
+};
 
 export async function action({ request }: ActionFunctionArgs) {
     const data = Object.fromEntries(await request.formData());
@@ -37,8 +37,10 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 const RegistroCarrera = ({ registroCarrera }: RegistroCarreraFormProps) => {
-    const carreras = useLoaderData() as { id_carrera: number; nom_carrera: string }[];
+    const loaderCarreras = useLoaderData() as { id_carrera: number; nom_carrera: string }[];
+    const [carreras, setCarreras] = useState(loaderCarreras); // Estado local para las carreras
     const [editCarrera, setEditCarrera] = useState<{ id_carrera: number; nom_carrera: string } | null>(null);
+    const [message, setMessage] = useState<string | null>(null); // Estado para el mensaje
 
     const handleEdit = (carrera: { id_carrera: number; nom_carrera: string }) => {
         setEditCarrera(carrera);
@@ -52,11 +54,62 @@ const RegistroCarrera = ({ registroCarrera }: RegistroCarreraFormProps) => {
         if (confirm('¿Estás seguro de que deseas eliminar esta carrera?')) {
             try {
                 await eliminarCarrera(id);
-                window.location.reload(); // Recargar la página para actualizar la lista de carreras
+                // Actualiza el estado local eliminando la carrera
+                setCarreras((prevCarreras) => prevCarreras.filter((carrera) => carrera.id_carrera !== id));
+                setMessage('Carrera eliminada exitosamente.');
+                hideMessageAfterTimeout();
             } catch (error) {
                 console.error('Error al eliminar la carrera:', error);
+                setMessage('Error al eliminar la carrera.');
+                hideMessageAfterTimeout();
             }
         }
+    };
+
+    const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        const formData = new FormData(event.currentTarget);
+        const data = Object.fromEntries(formData);
+
+        if (editCarrera) {
+            // Editar carrera existente
+            try {
+                await editarCarrera(editCarrera.id_carrera, { nom_carrera: data.nom_carrera as string });
+                setMessage('Carrera modificada exitosamente.');
+                setCarreras((prevCarreras) =>
+                    prevCarreras.map((carrera) =>
+                        carrera.id_carrera === editCarrera.id_carrera
+                            ? { ...carrera, nom_carrera: data.nom_carrera as string }
+                            : carrera
+                    )
+                );
+                setEditCarrera(null);
+                hideMessageAfterTimeout();
+            } catch (error) {
+                console.error('Error al editar la carrera:', error);
+                setMessage('Ocurrió un error al editar la carrera.');
+                hideMessageAfterTimeout();
+            }
+        } else {
+            // Agregar nueva carrera
+            try {
+                await carrera(data);
+                const nuevasCarreras = await obtenerCarreras();
+                setCarreras(nuevasCarreras);
+                setMessage('Carrera agregada exitosamente.');
+                hideMessageAfterTimeout();
+            } catch (error) {
+                console.error('Error al agregar la carrera:', error);
+                setMessage('Error al agregar la carrera.');
+                hideMessageAfterTimeout();
+            }
+        }
+    };
+
+    const hideMessageAfterTimeout = () => {
+        setTimeout(() => {
+            setMessage(null);
+        }, 3000); // 3 segundos
     };
 
     return (
@@ -65,7 +118,12 @@ const RegistroCarrera = ({ registroCarrera }: RegistroCarreraFormProps) => {
                 <h2 className="text-2xl font-semibold text-center text-gray-800 dark:text-gray-200 mb-6">
                     Alta, Baja y Modificación Carreras
                 </h2>
-                <Form method="POST" className="space-y-6">
+                {message && (
+                    <div className="mb-4 text-center text-sm text-green-600 bg-green-100 p-2 rounded">
+                        {message}
+                    </div>
+                )}
+                <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
                         <label htmlFor="nom_carrera" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                             Nombre Carrera
@@ -97,7 +155,7 @@ const RegistroCarrera = ({ registroCarrera }: RegistroCarreraFormProps) => {
                             </button>
                         )}
                     </div>
-                </Form>
+                </form>
                 <h2 className="text-2xl font-semibold text-center text-gray-800 dark:text-gray-200 mt-8 mb-6">
                     Listado de Carreras
                 </h2>

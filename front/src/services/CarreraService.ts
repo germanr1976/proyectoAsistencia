@@ -53,12 +53,27 @@ export async function obtenerCarreras() {
     }
 }
 
-export async function eliminarCarrera(id: number) {
+export async function eliminarCarrera(id: number): Promise<void> {
     try {
         await axios.delete(`${CARRERA_URL}/${id}`);
         console.log('Carrera eliminada exitosamente');
     } catch (error) {
         console.error('Error al eliminar la carrera:', error);
         throw new Error('Error al eliminar la carrera');
+    }
+}
+
+// Nuevo servicio para editar una carrera
+export async function editarCarrera(id: number, datos: { nom_carrera: string }): Promise<void> {
+    try {
+        const response = await axios.put(`${CARRERA_URL}/${id}`, datos, {
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+        console.log('Carrera actualizada exitosamente:', response.data);
+    } catch (error) {
+        console.error('Error al actualizar la carrera:', error);
+        throw new Error('Error al actualizar la carrera');
     }
 }

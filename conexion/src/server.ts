@@ -11,7 +11,8 @@ import cors from "cors";
 const server = Express();
 const corsOptions = {
     origin: 'http://localhost:5173',
-    methods: 'GET,HEAD,PUT,POST',
+    methods: 'GET,HEAD,PUT,POST,DELETE,OPTIONS',
+    allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
     optionsSuccessStatus: 204,
 

@@ -28,9 +28,8 @@ export async function action({ request }: ActionFunctionArgs) {
 
     // Verificar que id_carrera es un número
     if (!isNaN(idCarreraValue)) {
-        try {
+        try { //intenta ejecutar el codigo dentro del bloque
             await alumno({
-
 
                 nom_alumno: data.nom_alumno,
                 apell_alumno: data.apell_alumno,
@@ -46,7 +45,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
             return redirect('/');
 
-        } catch (error: unknown) {
+        } catch (error: unknown) { //captura si hay error
             if (error instanceof Error) {
                 return error.message;
             }
@@ -61,11 +60,11 @@ export async function action({ request }: ActionFunctionArgs) {
 const RegistroAlumno = ({ registroAlumno }: RegistroAlumnoFormProps) => {
     const [carreras, setCarreras] = useState<Carrera[]>([]);
 
-    useEffect(() => {
+    useEffect(() => { //hook de React (useEffect) que se ejecuta una sola vez, al montar un componente.
         obtenerCarreras()
             .then(data => {
                 console.log('Datos obtenidos en el componente:', data); // Verifica aquí
-                if (Array.isArray(data) && data.length > 0) {
+                if (Array.isArray(data) && data.length > 0) { //Si data es un arreglo y tiene al menos un elemento, entonces el bloque if se ejecutará.
                     setCarreras(data);
                 } else {
                     console.error("No se encontraron carreras.");

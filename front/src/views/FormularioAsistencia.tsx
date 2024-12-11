@@ -56,6 +56,7 @@ const FormularioAsistencia = () => {
     const alumnosPerPage = 10;
     const [showReport, setShowReport] = useState(false);
     const reportRef = useRef<HTMLDivElement>(null);
+    const [message, setMessage] = useState<string | null>(null); // Estado para el mensaje
 
     useEffect(() => {
         if (selectedCarrera && selectedAnio) {
@@ -69,6 +70,12 @@ const FormularioAsistencia = () => {
         setEstadoAlumnos(prev => ({ ...prev, [id_alumno]: estado }));
     };
 
+    const hideMessageAfterTimeout = () => {
+        setTimeout(() => {
+            setMessage(null);
+        }, 3000); // 3 segundos
+    };
+
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
         const asistenciaData = {
@@ -80,10 +87,12 @@ const FormularioAsistencia = () => {
         };
         try {
             await registrarAsistencia(asistenciaData);
-            alert('Asistencia registrada exitosamente');
+            setMessage('Asistencia registrada exitosamente');
+            hideMessageAfterTimeout();
         } catch (error) {
             console.error('Error al registrar la asistencia:', error);
-            alert('Error al registrar la asistencia');
+            setMessage('Error al registrar la asistencia');
+            hideMessageAfterTimeout();
         }
     };
 
@@ -110,6 +119,11 @@ const FormularioAsistencia = () => {
                 <h2 className="text-2xl font-semibold text-center text-gray-800 dark:text-gray-200 mb-6">
                     Registro de Asistencia
                 </h2>
+                {message && (
+                    <div className="mb-4 text-center text-sm text-green-600 bg-green-100 p-2 rounded">
+                        {message}
+                    </div>
+                )}
                 <Form onSubmit={handleSubmit} className="space-y-6">
                     <div>
                         <label htmlFor="fecha" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
